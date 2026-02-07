@@ -101,7 +101,7 @@
             /* Terminal Window */
             .terminal-wrapper {
                 width: 100%;
-                max-width: 650px;
+                max-width: 800px;
                 perspective: 1000px;
                 opacity: 0;
                 animation: fadeInUp 0.8s ease-out 0.4s forwards;
@@ -401,10 +401,13 @@
         </main>
 
         <footer>
-            <p>&copy; 2024 bgit. Open source software.</p>
+            <p>&copy; <span id="year"></span> bgit. Open source software.</p>
         </footer>
 
         <script>
+             // Set current year
+             document.getElementById('year').textContent = new Date().getFullYear();
+
             const copyBtn = document.querySelector('.copy-btn');
             const commandText = document.getElementById('install-cmd').innerText;
 
