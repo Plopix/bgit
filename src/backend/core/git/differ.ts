@@ -77,6 +77,8 @@ export const createDiffer = ({ repoDir, file, commit1, commit2 }: Deps) => {
                     });
 
                     console.log(overallSummary);
+
+                    return overallSummary
                 } catch (err) {
                     console.error(pc.red(`  Error generating overall summary: ${(err as Error).message}`));
                 }
