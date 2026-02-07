@@ -55,14 +55,6 @@ build-all: ## Build All the CLIs
 	@rm -f .*.bun-build
 	@mv ./src/ui/styles.tcss ./src/ui/styles.css
 
-.PHONY: deploy
-deploy: build-all ## Deploy
-	@for target in bun-linux-x64 bun-linux-arm64 bun-darwin-x64 bun-darwin-arm64; do \
-		scp bgit-$$target root@plopix.net:/var/www/html/plopix/www.plopix.net/wwwroot/static/neon/; \
-	done
-	@scp bgit-bun-windows-x64.exe root@plopix.net:/var/www/html/plopix/www.plopix.net/wwwroot/static/neon/
-	@scp src/install.bash root@plopix.net:/var/www/html/plopix/www.plopix.net/wwwroot/static/neon/
-	@$(MAKE) clean
 
 .PHONY: serve
 serve: ## Serve the application
