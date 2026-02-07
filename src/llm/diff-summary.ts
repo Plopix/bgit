@@ -27,7 +27,7 @@ import pc from 'picocolors';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-interface ParsedArgs {
+export interface ParsedArgs {
   commit1: string;
   commit2: string;
   repo: string;
@@ -124,7 +124,7 @@ async function resolveRepo(repo: string): Promise<{ repoDir: string; cleanup: ()
 // ── Git helpers (using Bun.$) ────────────────────────────────────────────────
 
 /** Return the list of files changed between two commits. */
-async function getChangedFiles(repoDir: string, commit1: string, commit2: string): Promise<string[]> {
+export async function getChangedFiles(repoDir: string, commit1: string, commit2: string): Promise<string[]> {
   const result =
     await Bun.$`git -C ${repoDir} diff --name-only ${commit1}..${commit2}`.text();
   return result
@@ -134,14 +134,14 @@ async function getChangedFiles(repoDir: string, commit1: string, commit2: string
 }
 
 /** Return the unified diff for a single file between two commits. */
-async function getFileDiff(repoDir: string, commit1: string, commit2: string, filePath: string): Promise<string> {
+export async function getFileDiff(repoDir: string, commit1: string, commit2: string, filePath: string): Promise<string> {
   const result =
     await Bun.$`git -C ${repoDir} diff ${commit1}..${commit2} -- ${filePath}`.text();
   return result.trim();
 }
 
 /** Return the full diff (all files) between two commits. */
-async function getFullDiff(repoDir: string, commit1: string, commit2: string): Promise<string> {
+export async function getFullDiff(repoDir: string, commit1: string, commit2: string): Promise<string> {
   const result =
     await Bun.$`git -C ${repoDir} diff --stat ${commit1}..${commit2}`.text();
   return result.trim();
@@ -153,7 +153,7 @@ async function getFullDiff(repoDir: string, commit1: string, commit2: string): P
  * Use repomix to pack the changed files into an AI-friendly XML blob.
  * We ask repomix to write to stdout so we can capture the output.
  */
-async function packChangedFiles(repoDir: string, changedFiles: string[]): Promise<string> {
+export async function packChangedFiles(repoDir: string, changedFiles: string[]): Promise<string> {
   const includeGlob = changedFiles.join(',');
   const outputPath = resolve(repoDir, '.repomix-diff-output.xml');
 
