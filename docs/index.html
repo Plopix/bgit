@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Better (git) CLI | bgit</title>
+        <meta name="description" content="A powerful, modern command line tool to manage your git repositories." />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --bg-body: #09090b;
+                --bg-card: #18181b;
+                --bg-term: #0f0f11;
+                --text-main: #e4e4e7;
+                --text-muted: #a1a1aa;
+                --primary: #3b82f6;
+                --accent: #8b5cf6;
+                --success: #22c55e;
+                --border: #27272a;
+                --gradient-start: #3b82f6;
+                --gradient-end: #8b5cf6;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family:
+                    'Inter',
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    'Segoe UI',
+                    Roboto,
+                    sans-serif;
+                background-color: var(--bg-body);
+                color: var(--text-main);
+                line-height: 1.5;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                overflow-x: hidden;
+                background-image:
+                    radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 20%),
+                    radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 20%);
+            }
+
+            /* Ambient Glow */
+            .glow {
+                position: absolute;
+                width: 600px;
+                height: 600px;
+                background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
+                top: -200px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: -1;
+                pointer-events: none;
+            }
+
+            main {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 4rem 1.5rem;
+                text-align: center;
+            }
+
+            h1 {
+                font-size: 3.5rem;
+                font-weight: 800;
+                letter-spacing: -0.05em;
+                margin-bottom: 1rem;
+                background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
+                background-clip: text;
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                opacity: 0;
+                animation: fadeInDown 0.8s ease-out forwards;
+            }
+
+            .subtitle {
+                font-size: 1.25rem;
+                color: var(--text-muted);
+                max-width: 600px;
+                margin-bottom: 3rem;
+                line-height: 1.6;
+                opacity: 0;
+                animation: fadeInUp 0.8s ease-out 0.2s forwards;
+            }
+
+            /* Terminal Window */
+            .terminal-wrapper {
+                width: 100%;
+                max-width: 650px;
+                perspective: 1000px;
+                opacity: 0;
+                animation: fadeInUp 0.8s ease-out 0.4s forwards;
+            }
+
+            .terminal {
+                background: var(--bg-term);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                box-shadow:
+                    0 0 0 1px rgba(255, 255, 255, 0.05),
+                    0 20px 50px -10px rgba(0, 0, 0, 0.5),
+                    0 0 40px -10px rgba(59, 130, 246, 0.1);
+                overflow: hidden;
+                transition:
+                    transform 0.3s ease,
+                    box-shadow 0.3s ease;
+            }
+
+            .terminal:hover {
+                transform: translateY(-2px);
+                box-shadow:
+                    0 0 0 1px rgba(255, 255, 255, 0.08),
+                    0 25px 60px -12px rgba(0, 0, 0, 0.6),
+                    0 0 50px -10px rgba(59, 130, 246, 0.15);
+            }
+
+            .terminal-header {
+                display: flex;
+                align-items: center;
+                padding: 12px 16px;
+                background: rgba(255, 255, 255, 0.02);
+                border-bottom: 1px solid var(--border);
+            }
+
+            .terminal-controls {
+                display: flex;
+                gap: 8px;
+            }
+
+            .control {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+            }
+
+            .close {
+                background-color: #ef4444;
+            }
+            .minimize {
+                background-color: #eab308;
+            }
+            .maximize {
+                background-color: #22c55e;
+            }
+
+            .terminal-title {
+                margin-left: 16px;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                opacity: 0.6;
+            }
+
+            .terminal-body {
+                padding: 24px;
+                text-align: left;
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .code-line {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.95rem;
+                color: var(--text-main);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                overflow-x: auto;
+                padding-right: 16px;
+            }
+
+            .prompt {
+                color: var(--success);
+                user-select: none;
+                font-weight: 600;
+            }
+
+            .command {
+                color: #fff;
+            }
+
+            .copy-btn {
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid var(--border);
+                color: var(--text-main);
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-family: 'Inter', sans-serif;
+                margin-left: 16px;
+                white-space: nowrap;
+            }
+
+            .copy-btn:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-color: rgba(255, 255, 255, 0.2);
+            }
+
+            .copy-btn:active {
+                transform: scale(0.96);
+            }
+
+            .copy-btn.copied {
+                background: rgba(34, 197, 94, 0.1);
+                color: var(--success);
+                border-color: rgba(34, 197, 94, 0.3);
+            }
+
+            .features {
+                display: flex;
+                gap: 2rem;
+                margin-top: 4rem;
+                flex-wrap: wrap;
+                justify-content: center;
+                opacity: 0;
+                animation: fadeInUp 0.8s ease-out 0.6s forwards;
+            }
+
+            .feature {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                color: var(--text-muted);
+                font-size: 0.95rem;
+                padding: 8px 16px;
+                border-radius: 99px;
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                transition: all 0.3s ease;
+            }
+
+            .feature:hover {
+                background: rgba(255, 255, 255, 0.04);
+                border-color: rgba(255, 255, 255, 0.1);
+                color: var(--text-main);
+                transform: translateY(-1px);
+            }
+
+            .feature svg {
+                width: 18px;
+                height: 18px;
+                color: var(--text-main);
+            }
+
+            footer {
+                padding: 2rem;
+                text-align: center;
+                color: var(--text-muted);
+                font-size: 0.85rem;
+                border-top: 1px solid rgba(255, 255, 255, 0.03);
+                margin-top: auto;
+            }
+
+            footer a {
+                color: var(--text-muted);
+                text-decoration: none;
+                transition: color 0.2s;
+            }
+
+            footer a:hover {
+                color: var(--text-main);
+            }
+
+            @keyframes fadeInDown {
+                from {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @media (max-width: 640px) {
+                h1 {
+                    font-size: 2.5rem;
+                }
+                .terminal-body {
+                    flex-direction: column;
+                    gap: 16px;
+                    align-items: stretch;
+                }
+                .code-line {
+                    margin-bottom: 8px;
+                }
+                .copy-btn {
+                    margin-left: 0;
+                    width: 100%;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="glow"></div>
+        <main>
+            <h1>Better (git) CLI</h1>
+            <p class="subtitle">
+                Experience a new standard for git management. Fast, intuitive, and designed for modern workflows.
+            </p>
+
+            <div class="terminal-wrapper">
+                <div class="terminal">
+                    <div class="terminal-header">
+                        <div class="terminal-controls">
+                            <div class="control close"></div>
+                            <div class="control minimize"></div>
+                            <div class="control maximize"></div>
+                        </div>
+                        <div class="terminal-title">bash — 80x24</div>
+                    </div>
+                    <div class="terminal-body">
+                        <div class="code-line">
+                            <span class="prompt">$</span>
+                            <span class="command" id="install-cmd"
+                                >curl -LSs https://plopix.github.io/bgit/install.bash | bash</span
+                            >
+                        </div>
+                        <button class="copy-btn" aria-label="Copy to clipboard">Copy</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="features">
+                <div class="feature">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Blazing Fast
+                </div>
+                <div class="feature">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                        />
+                    </svg>
+                    Smart Defaults
+                </div>
+                <div class="feature">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                    </svg>
+                    Zero Config
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 bgit. Open source software.</p>
+        </footer>
+
+        <script>
+            const copyBtn = document.querySelector('.copy-btn');
+            const commandText = document.getElementById('install-cmd').innerText;
+
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(commandText);
+                    const originalText = copyBtn.innerText;
+
+                    copyBtn.innerText = 'Copied!';
+                    copyBtn.classList.add('copied');
+
+                    setTimeout(() => {
+                        copyBtn.innerText = originalText;
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                }
+            });
+        </script>
+    </body>
+</html>
