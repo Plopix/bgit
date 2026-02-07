@@ -7,7 +7,6 @@ import { createTestCommand } from './backend/commands/test';
 import { createLogCommand } from './backend/commands/log';
 import { buildServices } from './backend/services';
 
-
 const logLevels = (`${Bun.env.LOG_LEVELS}` === 'no-output' ? [] : ['info', ...`${Bun.env.LOG_LEVELS}`.split(',')]) as (
     | 'info'
     | 'debug'
