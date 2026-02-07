@@ -401,10 +401,13 @@
         </main>
 
         <footer>
-            <p>&copy; 2024 bgit. Open source software.</p>
+            <p>&copy; <span id="year"></span> bgit. Open source software.</p>
         </footer>
 
         <script>
+             // Set current year
+             document.getElementById('year').textContent = new Date().getFullYear();
+
             const copyBtn = document.querySelector('.copy-btn');
             const commandText = document.getElementById('install-cmd').innerText;
 
