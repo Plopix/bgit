@@ -9,7 +9,7 @@ type Deps = {
 export const createLogApi = ({ logger, differ }: Deps) => {
     const app = new Hono();
 
-    app.get('/log', async (c) => {
+    app.get('/api/log', async (c) => {
         // we may want to extract that into a service.
         const output =
             await Bun.$`git log --all --pretty=format:'{"hash":"%H","parents":"%P","author":"%an","date":"%ad","message":"%s"}'`.quiet();
@@ -17,13 +17,12 @@ export const createLogApi = ({ logger, differ }: Deps) => {
         return c.text(output.text());
     });
 
-    app.post('/summary-diff', async (c) => {
+    app.post('/api/summary-diff', async (c) => {
         const { from, to } = await c.req.json();
         const summary = await differ({
             commit1: from,
             commit2: to,
         });
-
         return c.json({
             summary,
         });

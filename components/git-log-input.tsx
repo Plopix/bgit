@@ -3,30 +3,19 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
 
-const PLACEHOLDER = `[
-  {
-    "hash": "a0ea5a156ed9a9f8239a7606d84e59e63e97f3ce",
-    "author": "Yon Valencion",
-    "date": "Sat Feb 7 11:12:30 2026 -0800",
-    "message": "test commit!"
-  },
-  {
-    "hash": "7abf9001ba1b2829c2308e50e5d99b5cd21ceefe",
-    "author": "Yon Valencion",
-    "date": "Sat Feb 7 11:10:23 2026 -0800",
-    "message": "Initial Commit"
-  }
-]`;
+const PLACEHOLDER = `{"hash":"a0ea5a156ed9a9f8239a7606d84e59e63e97f3ce","parents":"7abf9001ba1b2829c2308e50e5d99b5cd21ceefe","author":"Yon Valencion","date":"Sat Feb 7 11:12:30 2026 -0800","message":"test commit!"}
+{"hash":"7abf9001ba1b2829c2308e50e5d99b5cd21ceefe","parents":"","author":"Yon Valencion","date":"Sat Feb 7 11:10:23 2026 -0800","message":"Initial Commit"}`;
+
+export interface CommitInput {
+    hash: string;
+    parents?: string;
+    author: string;
+    date: string;
+    message: string;
+}
 
 interface GitLogInputProps {
-    onParse: (
-        commits: {
-            hash: string;
-            author: string;
-            date: string;
-            message: string;
-        }[],
-    ) => void;
+    onParse: (commits: CommitInput[]) => void;
 }
 
 export function GitLogInput({ onParse }: GitLogInputProps) {
@@ -36,12 +25,40 @@ export function GitLogInput({ onParse }: GitLogInputProps) {
     function handleParse() {
         setError(null);
         try {
-            const parsed = JSON.parse(value);
-            const commits = Array.isArray(parsed) ? parsed : [parsed];
+            const commits: CommitInput[] = [];
 
-            for (const commit of commits) {
-                if (!commit.hash || !commit.author || !commit.date || !commit.message) {
-                    throw new Error('Each commit must have hash, author, date, and message fields.');
+            // Try parsing as JSON array first
+            const trimmed = value.trim();
+            if (trimmed.startsWith('[')) {
+                const parsed = JSON.parse(trimmed);
+                const arr = Array.isArray(parsed) ? parsed : [parsed];
+                for (const c of arr) {
+                    if (!c.hash || !c.author || !c.date || !c.message) {
+                        throw new Error('Each commit must have hash, author, date, and message fields.');
+                    }
+                    commits.push({
+                        hash: c.hash,
+                        parents: c.parents ?? '',
+                        author: c.author,
+                        date: c.date,
+                        message: c.message,
+                    });
+                }
+            } else {
+                // Parse as NDJSON (newline-delimited JSON)
+                const lines = trimmed.split('\n').filter((line) => line.trim());
+                for (const line of lines) {
+                    const c = JSON.parse(line);
+                    if (!c.hash || !c.author || !c.date || !c.message) {
+                        throw new Error('Each commit must have hash, author, date, and message fields.');
+                    }
+                    commits.push({
+                        hash: c.hash,
+                        parents: c.parents ?? '',
+                        author: c.author,
+                        date: c.date,
+                        message: c.message,
+                    });
                 }
             }
 
