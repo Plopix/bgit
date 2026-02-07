@@ -5,6 +5,10 @@ on:
 
 name: Release a New Version
 
+permissions:
+    contents: write
+    id-token: write
+
 jobs:
     releaseandpublish:
         name: Release on Github
