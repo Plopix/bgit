@@ -1,0 +1,24 @@
+{
+  "name": "bgit",
+  "module": "index.ts",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "commander": "^14.0.3",
+    "hono": "^4.11.8",
+    "ai": "^6.0.77",
+    "picocolors": "^1.1.1",
+    "react": "^19",
+    "react-dom": "^19",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
