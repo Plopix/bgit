@@ -7,7 +7,9 @@
     "dependencies": {
         "commander": "^14.0.3",
         "hono": "^4.11.8",
+        "@ai-sdk/anthropic": "^3",
         "ai": "^6.0.77",
+        "repomix": "^1",
         "picocolors": "^1.1.1",
         "react": "^19",
         "react-dom": "^19",
