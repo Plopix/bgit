@@ -9,6 +9,9 @@
  * Usage:
  *   bun src/llm/diff-summary.ts <commit1> <commit2> --repo <url-or-path> --api-key <ANTHROPIC_API_KEY>
  *
+ * By default produces a high-level overall summary of all changes.
+ * Pass --file <path> to get a detailed summary for a single file instead.
+ *
  * --repo accepts a public git URL (https://… or git@…) which will be cloned
  * into a temporary directory, or a local path to an existing repository.
  */
@@ -28,6 +31,7 @@ interface ParsedArgs {
   commit1: string;
   commit2: string;
   repo: string;
+  file: string | undefined;
   apiKey: string;
   model: string;
 }
@@ -36,9 +40,10 @@ function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
   let apiKey = '';
   let repo = '';
+  let file: string | undefined;
   let model = 'claude-opus-4-6';
 
-  // Extract --api-key, --repo, and --model flags
+  // Extract --api-key, --repo, --file, and --model flags
   const positional: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
@@ -46,6 +51,8 @@ function parseArgs(): ParsedArgs {
       apiKey = args[++i]!;
     } else if (arg === '--repo' && args[i + 1]) {
       repo = args[++i]!;
+    } else if (arg === '--file' && args[i + 1]) {
+      file = args[++i]!;
     } else if (arg === '--model' && args[i + 1]) {
       model = args[++i]!;
     } else if (!arg.startsWith('--')) {
@@ -59,7 +66,7 @@ function parseArgs(): ParsedArgs {
   if (!commit1 || !commit2 || !repo) {
     console.error(
       pc.red(
-        'Usage: bun src/llm/diff-summary.ts <commit1> <commit2> --repo <url-or-path> --api-key <key> [--model <model>]',
+        'Usage: bun src/llm/diff-summary.ts <commit1> <commit2> --repo <url-or-path> --api-key <key> [--file <path>] [--model <model>]',
       ),
     );
     process.exit(1);
@@ -74,7 +81,7 @@ function parseArgs(): ParsedArgs {
     process.exit(1);
   }
 
-  return { commit1, commit2, repo, apiKey, model };
+  return { commit1, commit2, repo, file, apiKey, model };
 }
 
 // ── Repo resolution ──────────────────────────────────────────────────────────
@@ -216,7 +223,7 @@ Be concise but thorough. Use bullet points. Do NOT repeat the raw diff back.`;
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const { commit1, commit2, repo, apiKey, model } = parseArgs();
+  const { commit1, commit2, repo, file, apiKey, model } = parseArgs();
   const { repoDir, cleanup } = await resolveRepo(repo);
 
   try {
@@ -226,42 +233,31 @@ async function main() {
 
     console.log(pc.dim(`Repository : ${repoDir}`));
     console.log(pc.dim(`Commits    : ${commit1} → ${commit2}`));
+    console.log(pc.dim(`Mode       : ${file ? `single file (${file})` : 'overall summary'}`));
     console.log(pc.dim(`Model      : ${model}\n`));
 
-    // 1. List changed files
-    console.log(pc.bold('▸ Fetching changed files…'));
-    const changedFiles = await getChangedFiles(repoDir, commit1, commit2);
-    if (changedFiles.length === 0) {
-      console.log(pc.yellow('No files changed between the two commits.'));
-      process.exit(0);
-    }
-
-    const diffStat = await getFullDiff(repoDir, commit1, commit2);
-    console.log(pc.dim(diffStat));
-    console.log(pc.green(`  ${changedFiles.length} file(s) changed\n`));
-
-    // 2. Pack repo context with repomix
-    console.log(pc.bold('▸ Packing repository context with repomix…'));
-    const repoContext = await packChangedFiles(repoDir, changedFiles);
-    if (repoContext) {
-      console.log(pc.green(`  Context packed (${(repoContext.length / 1024).toFixed(1)} KB)\n`));
-    } else {
-      console.log(pc.dim('  (skipped)\n'));
-    }
-
-    // 3. Summarise each file
     const anthropic = createAnthropic({ apiKey });
 
-    console.log(pc.bold('▸ Generating per-file summaries…\n'));
-
-    for (const file of changedFiles) {
-      console.log(pc.bold(pc.underline(pc.blue(`── ${file} ──`))));
+    if (file) {
+      // ── Single-file mode ────────────────────────────────────────────────
+      console.log(pc.bold(`▸ Generating summary for ${file}…\n`));
 
       const diff = await getFileDiff(repoDir, commit1, commit2, file);
       if (!diff) {
-        console.log(pc.dim('  (no diff content – file may be binary or unchanged)\n'));
-        continue;
+        console.log(pc.yellow('  No diff content – file may be binary, unchanged, or not part of this diff.'));
+        process.exit(0);
       }
+
+      // Pack context for just this file
+      console.log(pc.bold('▸ Packing repository context with repomix…'));
+      const repoContext = await packChangedFiles(repoDir, [file]);
+      if (repoContext) {
+        console.log(pc.green(`  Context packed (${(repoContext.length / 1024).toFixed(1)} KB)\n`));
+      } else {
+        console.log(pc.dim('  (skipped)\n'));
+      }
+
+      console.log(pc.bold(pc.underline(pc.blue(`── ${file} ──`))));
 
       try {
         const summary = await summariseFileDiff(anthropic, model, file, diff, repoContext);
@@ -269,25 +265,34 @@ async function main() {
       } catch (err) {
         console.error(pc.red(`  Error summarising ${file}: ${(err as Error).message}`));
       }
+    } else {
+      // ── Overall summary mode (default) ──────────────────────────────────
+      console.log(pc.bold('▸ Fetching changed files…'));
+      const changedFiles = await getChangedFiles(repoDir, commit1, commit2);
+      if (changedFiles.length === 0) {
+        console.log(pc.yellow('No files changed between the two commits.'));
+        process.exit(0);
+      }
 
-      console.log(''); // blank line between files
-    }
+      const diffStat = await getFullDiff(repoDir, commit1, commit2);
+      console.log(pc.dim(diffStat));
+      console.log(pc.green(`  ${changedFiles.length} file(s) changed\n`));
 
-    // 4. Generate an overall summary
-    console.log(pc.bold(pc.underline(pc.magenta('── Overall Summary ──'))));
+      console.log(pc.bold(pc.underline(pc.magenta('── Overall Summary ──'))));
 
-    const fullDiff = await Bun.$`git -C ${repoDir} diff ${commit1}..${commit2}`.text();
+      const fullDiff = await Bun.$`git -C ${repoDir} diff ${commit1}..${commit2}`.text();
 
-    try {
-      const { text: overallSummary } = await generateText({
-        model: anthropic(model),
-        system: `You are a senior software engineer. Summarise the overall set of changes across all files in this diff in 3-5 bullet points. Be high-level and focus on the intent and impact of the changes as a whole.`,
-        prompt: `Here is the complete diff between commits ${commit1} and ${commit2}:\n\n\`\`\`diff\n${fullDiff.slice(0, 30_000)}\n\`\`\``,
-      });
+      try {
+        const { text: overallSummary } = await generateText({
+          model: anthropic(model),
+          system: `You are a senior software engineer. Summarise the overall set of changes across all files in this diff in 3-5 bullet points. Be high-level and focus on the intent and impact of the changes as a whole.`,
+          prompt: `Here is the complete diff between commits ${commit1} and ${commit2}:\n\n\`\`\`diff\n${fullDiff.slice(0, 30_000)}\n\`\`\``,
+        });
 
-      console.log(overallSummary);
-    } catch (err) {
-      console.error(pc.red(`  Error generating overall summary: ${(err as Error).message}`));
+        console.log(overallSummary);
+      } catch (err) {
+        console.error(pc.red(`  Error generating overall summary: ${(err as Error).message}`));
+      }
     }
 
     console.log(pc.bold(pc.cyan('\n✓ Done.\n')));
