@@ -5,6 +5,7 @@ import { Command } from 'commander';
 import pc from 'picocolors';
 import { createTestCommand } from './backend/commands/test';
 import { createLogCommand } from './backend/commands/log';
+import { createRunner } from './backend/core/runner';
 
 // const logLevels = (`${Bun.env.LOG_LEVELS}` === 'no-output' ? [] : ['info', ...`${Bun.env.LOG_LEVELS}`.split(',')]) as (
 //     | 'info'
@@ -12,8 +13,8 @@ import { createLogCommand } from './backend/commands/log';
 // )[];
 
 const program = new Command();
-program.allowExcessArguments(false);
-program.allowUnknownOption(false);
+program.allowExcessArguments(true);
+program.allowUnknownOption(true);
 program.version(packageJson.version);
 program.name('bgit');
 const helpStyling = {
@@ -38,13 +39,28 @@ const genericCommandOption = (command: Command) => {
         writeErr: (str) => console.error(str),
     });
 };
-genericCommandOption(program);
+program.configureHelp(helpStyling);
+program.configureOutput({
+    writeErr: (str) => console.error(str),
+});
 
 const commands = [createTestCommand(), createLogCommand()];
 
 commands.forEach((command) => {
     genericCommandOption(command);
     program.addCommand(command);
+});
+
+// Default action: forward all args to git when no bgit subcommand matches
+program.action(async () => {
+    const args = process.argv.slice(2);
+    const run = createRunner();
+    const exitCode = await run(
+        ['git', ...args],
+        (data) => process.stdout.write(data),
+        (data) => process.stderr.write(data),
+    );
+    process.exit(exitCode);
 });
 
 const logMemory = () => {
