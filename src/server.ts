@@ -5,15 +5,19 @@ import { Command } from 'commander';
 import pc from 'picocolors';
 import { createTestCommand } from './backend/commands/test';
 import { createLogCommand } from './backend/commands/log';
+import { buildServices } from './backend/services';
 
-// const logLevels = (`${Bun.env.LOG_LEVELS}` === 'no-output' ? [] : ['info', ...`${Bun.env.LOG_LEVELS}`.split(',')]) as (
-//     | 'info'
-//     | 'debug'
-// )[];
+const logLevels = (`${Bun.env.LOG_LEVELS}` === 'no-output' ? [] : ['info', ...`${Bun.env.LOG_LEVELS}`.split(',')]) as (
+    | 'info'
+    | 'debug'
+)[];
+
+const services = buildServices({ logLevels });
+const { logger, runner } = services;
 
 const program = new Command();
-program.allowExcessArguments(false);
-program.allowUnknownOption(false);
+program.allowExcessArguments(true);
+program.allowUnknownOption(true);
 program.version(packageJson.version);
 program.name('bgit');
 const helpStyling = {
@@ -35,21 +39,35 @@ const genericCommandOption = (command: Command) => {
     command.allowExcessArguments(false);
     command.allowUnknownOption(false);
     command.configureOutput({
-        writeErr: (str) => console.error(str),
+        writeErr: (str) => logger.error(str),
     });
 };
-genericCommandOption(program);
+program.configureHelp(helpStyling);
+program.configureOutput({
+    writeErr: (str) => console.error(str),
+});
 
-const commands = [createTestCommand(), createLogCommand()];
+const commands = [createTestCommand(services), createLogCommand(services)];
 
 commands.forEach((command) => {
     genericCommandOption(command);
     program.addCommand(command);
 });
 
+// Default action: forward all args to git when no bgit subcommand matches
+program.action(async () => {
+    const args = process.argv.slice(2);
+    const exitCode = await runner(
+        ['git', ...args],
+        (data) => process.stdout.write(data),
+        (data) => process.stderr.write(data),
+    );
+    process.exit(exitCode);
+});
+
 const logMemory = () => {
     const used = process.memoryUsage();
-    console.debug(
+    logger.debug(
         `${pc.bold('Memory usage:')} ${Object.keys(used)
             .map((key) => `${key} ${Math.round((used[key as keyof typeof used] / 1024 / 1024) * 100) / 100} MB`)
             .join(', ')}`,
@@ -59,20 +77,20 @@ const logMemory = () => {
 try {
     await program.parseAsync(process.argv);
 } catch (exception) {
-    // console.flush();
+    logger.flush();
     if (exception instanceof Error) {
-        console.error(`[${pc.bold(exception.name)}] ${exception.message} `);
+        logger.fatal(`[${pc.bold(exception.name)}] ${exception.message} `);
     } else if (typeof exception === 'string') {
-        console.error(exception);
+        logger.fatal(exception);
     } else if (exception instanceof Object && 'message' in exception) {
-        console.error(exception.message);
+        logger.fatal(exception.message);
     } else {
-        console.error(`Unknown error.`);
+        logger.error(`Unknown error.`);
     }
-    console.debug(exception);
+    logger.debug(exception);
     logMemory();
     process.exit(1);
 }
-// console.flush();
+logger.flush();
 logMemory();
 process.exit(0);

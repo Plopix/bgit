@@ -35,14 +35,18 @@
         "@radix-ui/react-tooltip": "1.1.6",
         "class-variance-authority": "^0.7.1",
         "tailwind-merge": "^2.5.5",
-
         "ai": "^6.0.77",
         "commander": "^14.0.3",
         "hono": "^4.11.8",
         "lucide-react": "^0.563.0",
+        "@ai-sdk/anthropic": "^3.0.38",
+        "ai": "^6.0.77",
+        "commander": "^14.0.3",
+        "hono": "^4.11.8",
         "picocolors": "^1.1.1",
         "react": "^19",
         "react-dom": "^19",
+        "signale": "^1.4.0",
         "zod": "^4.3.6"
     },
     "devDependencies": {
@@ -53,6 +57,8 @@
         "bun-plugin-tailwind": "^0.1.2",
         "prettier": "^3.8.1",
         "tailwindcss": "^4.1.18"
+        "@types/signale": "^1.4.7",
+        "@types/react-dom": "^19"
     },
     "peerDependencies": {
         "typescript": "^5"
