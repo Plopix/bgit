@@ -3,8 +3,12 @@ import { createLogApi } from '../api/log';
 import { serve } from 'bun';
 import pc from 'picocolors';
 import log from '../../ui/pages/log/index.html';
+import type { Logger } from '../contracts/logger';
 
-export const createLogCommand = () => {
+type Deps = {
+    logger: Logger;
+};
+export const createLogCommand = ({ logger }: Deps) => {
     const command = new Command('log');
     command.description('todo');
 
@@ -25,17 +29,17 @@ export const createLogCommand = () => {
                     },
                 });
                 process.on('SIGINT', () => {
-                    console.info('Shutting down server...');
+                    logger.info('Shutting down server...');
                     server.stop();
                     resolve();
                 });
                 process.on('SIGTERM', () => {
-                    console.info('Shutting down server...');
+                    logger.info('Shutting down server...');
                     server.stop();
                     resolve();
                 });
 
-                console.info(`Server is listening on ${pc.bold(pc.yellow(server.url.toString()))}`);
+                logger.info(`Server is listening on ${pc.bold(pc.yellow(server.url.toString()))}`);
                 // openBrowser(server.url.toString());
             } catch (error) {
                 reject(error);
