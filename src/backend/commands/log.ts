@@ -41,9 +41,6 @@ export const createLogCommand = () => {
                 reject(error);
             }
         });
-
-
-
     });
     return command;
 };

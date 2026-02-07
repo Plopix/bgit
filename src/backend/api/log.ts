@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono } from 'hono';
 
 export const createLogApi = () => {
     const app = new Hono();
@@ -8,4 +8,4 @@ export const createLogApi = () => {
     });
 
     return app;
-}   
+};

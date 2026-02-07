@@ -1,24 +1,28 @@
 {
-  "name": "bgit",
-  "module": "index.ts",
-  "version": "1.0.0",
-  "type": "module",
-  "private": true,
-  "dependencies": {
-    "commander": "^14.0.3",
-    "hono": "^4.11.8",
-    "ai": "^6.0.77",
-    "picocolors": "^1.1.1",
-    "react": "^19",
-    "react-dom": "^19",
-    "zod": "^4.3.6"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/react": "^19",
-    "@types/react-dom": "^19"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  }
+    "name": "bgit",
+    "module": "index.ts",
+    "version": "1.0.0",
+    "type": "module",
+    "private": true,
+    "dependencies": {
+        "commander": "^14.0.3",
+        "hono": "^4.11.8",
+        "ai": "^6.0.77",
+        "picocolors": "^1.1.1",
+        "react": "^19",
+        "react-dom": "^19",
+        "zod": "^4.3.6"
+    },
+    "devDependencies": {
+        "@tailwindcss/cli": "^4.1.18",
+        "bun-plugin-tailwind": "^0.1.2",
+        "tailwindcss": "^4.1.18",
+        "@types/bun": "latest",
+        "@types/react": "^19",
+        "prettier": "^3.8.1",
+        "@types/react-dom": "^19"
+    },
+    "peerDependencies": {
+        "typescript": "^5"
+    }
 }

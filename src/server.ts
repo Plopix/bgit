@@ -42,7 +42,6 @@ genericCommandOption(program);
 
 const commands = [createTestCommand(), createLogCommand()];
 
-
 commands.forEach((command) => {
     genericCommandOption(command);
     program.addCommand(command);
