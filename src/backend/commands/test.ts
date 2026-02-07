@@ -7,20 +7,20 @@ type Deps = {
     storage: ReturnType<typeof createStorage>;
 };
 
-export const createTestCommand  =  ({ logger, storage }: Deps) => {
+export const createTestCommand = ({ logger, storage }: Deps) => {
     const command = new Command('test');
     command.description('Test stuff');
     command.action(async () => {
-        await storage.set('1', 'test 1')
+        await storage.set('1', 'test 1');
         console.log('1', await storage.get('1'));
-        await storage.set('2', 'test 2')
+        await storage.set('2', 'test 2');
         console.log('2', await storage.get('2'));
 
-        await storage.delete('1')
+        await storage.delete('1');
         console.log('1', await storage.get('1'));
         console.log('2', await storage.get('2'));
 
-        await storage.clear()
+        await storage.clear();
         console.log('1', await storage.get('1'));
         console.log('2', await storage.get('2'));
 

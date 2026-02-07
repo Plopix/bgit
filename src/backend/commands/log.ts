@@ -4,18 +4,23 @@ import { serve } from 'bun';
 import pc from 'picocolors';
 import log from '../../ui/pages/log/index.html';
 import type { Logger } from '../contracts/logger';
+import type { createDiffer } from '../core/git/differ';
 
 type Deps = {
     logger: Logger;
+    differ: ReturnType<typeof createDiffer>;
 };
-export const createLogCommand = ({ logger }: Deps) => {
+export const createLogCommand = ({ logger, differ }: Deps) => {
     const command = new Command('log');
     command.description('todo');
 
     command.action(async () => {
         return new Promise<void>((resolve, reject) => {
             try {
-                const app = createLogApi();
+                const app = createLogApi({
+                    logger,
+                    differ,
+                });
                 const server = serve({
                     idleTimeout: 255,
                     port: Bun.env.PORT || 2424,

@@ -1,4 +1,4 @@
-import type { Logger } from "../contracts/logger";
+import type { Logger } from '../contracts/logger';
 
 type Deps = {
     logger: Logger;
