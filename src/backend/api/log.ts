@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { createDiffer } from '../core/git/differ';
+import { createDiffer } from '../core/git/differ';
 import type { Logger } from '../contracts/logger';
 
 type Deps = {
@@ -17,10 +17,17 @@ export const createLogApi = ({ logger, differ }: Deps) => {
         return c.text(output.text());
     });
 
-    app.get('/summary-diff', async (c) => {
+    app.post('/summary-diff', async (c) => {
         const { from, to } = await c.req.json();
         // const summary = await differ.summaryDiff(from, to);
-        const summary = `calling the function with ${from} and ${to}`;
+        const repoDir = process.cwd()
+
+        const summary = await createDiffer({
+            repoDir,
+            commit1: from,
+            commit2: to,
+        });
+
         return c.json({
             summary,
         });
