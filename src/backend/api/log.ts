@@ -19,11 +19,7 @@ export const createLogApi = ({ logger, differ }: Deps) => {
 
     app.post('/summary-diff', async (c) => {
         const { from, to } = await c.req.json();
-        // const summary = await differ.summaryDiff(from, to);
-        const repoDir = process.cwd()
-
-        const summary = await createDiffer({
-            repoDir,
+        const summary = await differ({
             commit1: from,
             commit2: to,
         });
