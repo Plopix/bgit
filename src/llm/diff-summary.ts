@@ -7,12 +7,16 @@
  * per-file LLM summary using Claude (via the Vercel AI SDK).
  *
  * Usage:
- *   bun src/llm/diff-summary.ts <commit1> <commit2> --api-key <ANTHROPIC_API_KEY>
+ *   bun src/llm/diff-summary.ts <commit1> <commit2> --repo <url-or-path> --api-key <ANTHROPIC_API_KEY>
  *
- * The repository analysed is the `example-repo` directory next to this file.
+ * --repo accepts a public git URL (https://… or git@…) which will be cloned
+ * into a temporary directory, or a local path to an existing repository.
  */
 
-import { resolve, dirname } from 'node:path';
+import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { generateText } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { runCli, type CliOptions } from 'repomix';
@@ -20,11 +24,10 @@ import pc from 'picocolors';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const REPO_DIR = resolve(dirname(import.meta.filename), 'example-repo');
-
 interface ParsedArgs {
   commit1: string;
   commit2: string;
+  repo: string;
   apiKey: string;
   model: string;
 }
@@ -32,14 +35,17 @@ interface ParsedArgs {
 function parseArgs(): ParsedArgs {
   const args = process.argv.slice(2);
   let apiKey = '';
+  let repo = '';
   let model = 'claude-opus-4-6';
 
-  // Extract --api-key and --model flags
+  // Extract --api-key, --repo, and --model flags
   const positional: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     if (arg === '--api-key' && args[i + 1]) {
       apiKey = args[++i]!;
+    } else if (arg === '--repo' && args[i + 1]) {
+      repo = args[++i]!;
     } else if (arg === '--model' && args[i + 1]) {
       model = args[++i]!;
     } else if (!arg.startsWith('--')) {
@@ -50,9 +56,11 @@ function parseArgs(): ParsedArgs {
   const commit1 = positional[0];
   const commit2 = positional[1];
 
-  if (!commit1 || !commit2) {
+  if (!commit1 || !commit2 || !repo) {
     console.error(
-      pc.red('Usage: bun src/llm/diff-summary.ts <commit1> <commit2> --api-key <key> [--model <model>]'),
+      pc.red(
+        'Usage: bun src/llm/diff-summary.ts <commit1> <commit2> --repo <url-or-path> --api-key <key> [--model <model>]',
+      ),
     );
     process.exit(1);
   }
@@ -66,15 +74,52 @@ function parseArgs(): ParsedArgs {
     process.exit(1);
   }
 
-  return { commit1, commit2, apiKey, model };
+  return { commit1, commit2, repo, apiKey, model };
+}
+
+// ── Repo resolution ──────────────────────────────────────────────────────────
+
+/** Returns true when the string looks like a remote git URL. */
+function isRemoteUrl(value: string): boolean {
+  return /^https?:\/\//.test(value) || value.startsWith('git@');
+}
+
+/**
+ * Resolve `--repo` to a local directory path.
+ *
+ * • If the value is a URL, clone it into a temp directory and return the path.
+ * • If it's a local path, resolve it and return it directly.
+ *
+ * Returns `{ repoDir, cleanup }` where `cleanup` removes the temp directory
+ * (no-op when the repo was already local).
+ */
+async function resolveRepo(repo: string): Promise<{ repoDir: string; cleanup: () => Promise<void> }> {
+  if (isRemoteUrl(repo)) {
+    const tempDir = await mkdtemp(resolve(tmpdir(), 'bgit-'));
+    console.log(pc.dim(`Cloning ${repo} → ${tempDir} …`));
+    await Bun.$`git clone ${repo} ${tempDir}`.quiet();
+    return {
+      repoDir: tempDir,
+      cleanup: async () => {
+        await rm(tempDir, { recursive: true, force: true });
+      },
+    };
+  }
+
+  const repoDir = resolve(repo);
+  if (!existsSync(repoDir)) {
+    console.error(pc.red(`Error: Local path does not exist: ${repoDir}`));
+    process.exit(1);
+  }
+  return { repoDir, cleanup: async () => { } };
 }
 
 // ── Git helpers (using Bun.$) ────────────────────────────────────────────────
 
 /** Return the list of files changed between two commits. */
-async function getChangedFiles(commit1: string, commit2: string): Promise<string[]> {
+async function getChangedFiles(repoDir: string, commit1: string, commit2: string): Promise<string[]> {
   const result =
-    await Bun.$`git -C ${REPO_DIR} diff --name-only ${commit1}..${commit2}`.text();
+    await Bun.$`git -C ${repoDir} diff --name-only ${commit1}..${commit2}`.text();
   return result
     .split('\n')
     .map((f) => f.trim())
@@ -82,16 +127,16 @@ async function getChangedFiles(commit1: string, commit2: string): Promise<string
 }
 
 /** Return the unified diff for a single file between two commits. */
-async function getFileDiff(commit1: string, commit2: string, filePath: string): Promise<string> {
+async function getFileDiff(repoDir: string, commit1: string, commit2: string, filePath: string): Promise<string> {
   const result =
-    await Bun.$`git -C ${REPO_DIR} diff ${commit1}..${commit2} -- ${filePath}`.text();
+    await Bun.$`git -C ${repoDir} diff ${commit1}..${commit2} -- ${filePath}`.text();
   return result.trim();
 }
 
 /** Return the full diff (all files) between two commits. */
-async function getFullDiff(commit1: string, commit2: string): Promise<string> {
+async function getFullDiff(repoDir: string, commit1: string, commit2: string): Promise<string> {
   const result =
-    await Bun.$`git -C ${REPO_DIR} diff --stat ${commit1}..${commit2}`.text();
+    await Bun.$`git -C ${repoDir} diff --stat ${commit1}..${commit2}`.text();
   return result.trim();
 }
 
@@ -101,9 +146,9 @@ async function getFullDiff(commit1: string, commit2: string): Promise<string> {
  * Use repomix to pack the changed files into an AI-friendly XML blob.
  * We ask repomix to write to stdout so we can capture the output.
  */
-async function packChangedFiles(changedFiles: string[]): Promise<string> {
+async function packChangedFiles(repoDir: string, changedFiles: string[]): Promise<string> {
   const includeGlob = changedFiles.join(',');
-  const outputPath = resolve(REPO_DIR, '.repomix-diff-output.xml');
+  const outputPath = resolve(repoDir, '.repomix-diff-output.xml');
 
   const options: CliOptions = {
     output: outputPath,
@@ -117,7 +162,7 @@ async function packChangedFiles(changedFiles: string[]): Promise<string> {
   };
 
   try {
-    await runCli(['.'], REPO_DIR, options);
+    await runCli(['.'], repoDir, options);
     const outputFile = Bun.file(outputPath);
     const content = await outputFile.text();
     // Clean up temp file
@@ -131,7 +176,7 @@ async function packChangedFiles(changedFiles: string[]): Promise<string> {
 
 // ── LLM summarisation ────────────────────────────────────────────────────────
 
-async function summariseFileDiff(
+export async function summariseFileDiff(
   anthropic: ReturnType<typeof createAnthropic>,
   model: string,
   filePath: string,
@@ -171,82 +216,89 @@ Be concise but thorough. Use bullet points. Do NOT repeat the raw diff back.`;
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const { commit1, commit2, apiKey, model } = parseArgs();
-
-  console.log(pc.bold(pc.cyan('\n╔══════════════════════════════════════╗')));
-  console.log(pc.bold(pc.cyan('║   Git Diff → LLM Summary             ║')));
-  console.log(pc.bold(pc.cyan('╚══════════════════════════════════════╝\n')));
-
-  console.log(pc.dim(`Repository : ${REPO_DIR}`));
-  console.log(pc.dim(`Commits    : ${commit1} → ${commit2}`));
-  console.log(pc.dim(`Model      : ${model}\n`));
-
-  // 1. List changed files
-  console.log(pc.bold('▸ Fetching changed files…'));
-  const changedFiles = await getChangedFiles(commit1, commit2);
-  if (changedFiles.length === 0) {
-    console.log(pc.yellow('No files changed between the two commits.'));
-    process.exit(0);
-  }
-
-  const diffStat = await getFullDiff(commit1, commit2);
-  console.log(pc.dim(diffStat));
-  console.log(pc.green(`  ${changedFiles.length} file(s) changed\n`));
-
-  // 2. Pack repo context with repomix
-  console.log(pc.bold('▸ Packing repository context with repomix…'));
-  const repoContext = await packChangedFiles(changedFiles);
-  if (repoContext) {
-    console.log(pc.green(`  Context packed (${(repoContext.length / 1024).toFixed(1)} KB)\n`));
-  } else {
-    console.log(pc.dim('  (skipped)\n'));
-  }
-
-  // 3. Summarise each file
-  const anthropic = createAnthropic({ apiKey });
-
-  console.log(pc.bold('▸ Generating per-file summaries…\n'));
-
-  for (const file of changedFiles) {
-    console.log(pc.bold(pc.underline(pc.blue(`── ${file} ──`))));
-
-    const diff = await getFileDiff(commit1, commit2, file);
-    if (!diff) {
-      console.log(pc.dim('  (no diff content – file may be binary or unchanged)\n'));
-      continue;
-    }
-
-    try {
-      const summary = await summariseFileDiff(anthropic, model, file, diff, repoContext);
-      console.log(summary);
-    } catch (err) {
-      console.error(pc.red(`  Error summarising ${file}: ${(err as Error).message}`));
-    }
-
-    console.log(''); // blank line between files
-  }
-
-  // 4. Generate an overall summary
-  console.log(pc.bold(pc.underline(pc.magenta('── Overall Summary ──'))));
-
-  const fullDiff = await Bun.$`git -C ${REPO_DIR} diff ${commit1}..${commit2}`.text();
+  const { commit1, commit2, repo, apiKey, model } = parseArgs();
+  const { repoDir, cleanup } = await resolveRepo(repo);
 
   try {
-    const { text: overallSummary } = await generateText({
-      model: anthropic(model),
-      system: `You are a senior software engineer. Summarise the overall set of changes across all files in this diff in 3-5 bullet points. Be high-level and focus on the intent and impact of the changes as a whole.`,
-      prompt: `Here is the complete diff between commits ${commit1} and ${commit2}:\n\n\`\`\`diff\n${fullDiff.slice(0, 30_000)}\n\`\`\``,
-    });
+    console.log(pc.bold(pc.cyan('\n╔══════════════════════════════════════╗')));
+    console.log(pc.bold(pc.cyan('║   Git Diff → LLM Summary             ║')));
+    console.log(pc.bold(pc.cyan('╚══════════════════════════════════════╝\n')));
 
-    console.log(overallSummary);
-  } catch (err) {
-    console.error(pc.red(`  Error generating overall summary: ${(err as Error).message}`));
+    console.log(pc.dim(`Repository : ${repoDir}`));
+    console.log(pc.dim(`Commits    : ${commit1} → ${commit2}`));
+    console.log(pc.dim(`Model      : ${model}\n`));
+
+    // 1. List changed files
+    console.log(pc.bold('▸ Fetching changed files…'));
+    const changedFiles = await getChangedFiles(repoDir, commit1, commit2);
+    if (changedFiles.length === 0) {
+      console.log(pc.yellow('No files changed between the two commits.'));
+      process.exit(0);
+    }
+
+    const diffStat = await getFullDiff(repoDir, commit1, commit2);
+    console.log(pc.dim(diffStat));
+    console.log(pc.green(`  ${changedFiles.length} file(s) changed\n`));
+
+    // 2. Pack repo context with repomix
+    console.log(pc.bold('▸ Packing repository context with repomix…'));
+    const repoContext = await packChangedFiles(repoDir, changedFiles);
+    if (repoContext) {
+      console.log(pc.green(`  Context packed (${(repoContext.length / 1024).toFixed(1)} KB)\n`));
+    } else {
+      console.log(pc.dim('  (skipped)\n'));
+    }
+
+    // 3. Summarise each file
+    const anthropic = createAnthropic({ apiKey });
+
+    console.log(pc.bold('▸ Generating per-file summaries…\n'));
+
+    for (const file of changedFiles) {
+      console.log(pc.bold(pc.underline(pc.blue(`── ${file} ──`))));
+
+      const diff = await getFileDiff(repoDir, commit1, commit2, file);
+      if (!diff) {
+        console.log(pc.dim('  (no diff content – file may be binary or unchanged)\n'));
+        continue;
+      }
+
+      try {
+        const summary = await summariseFileDiff(anthropic, model, file, diff, repoContext);
+        console.log(summary);
+      } catch (err) {
+        console.error(pc.red(`  Error summarising ${file}: ${(err as Error).message}`));
+      }
+
+      console.log(''); // blank line between files
+    }
+
+    // 4. Generate an overall summary
+    console.log(pc.bold(pc.underline(pc.magenta('── Overall Summary ──'))));
+
+    const fullDiff = await Bun.$`git -C ${repoDir} diff ${commit1}..${commit2}`.text();
+
+    try {
+      const { text: overallSummary } = await generateText({
+        model: anthropic(model),
+        system: `You are a senior software engineer. Summarise the overall set of changes across all files in this diff in 3-5 bullet points. Be high-level and focus on the intent and impact of the changes as a whole.`,
+        prompt: `Here is the complete diff between commits ${commit1} and ${commit2}:\n\n\`\`\`diff\n${fullDiff.slice(0, 30_000)}\n\`\`\``,
+      });
+
+      console.log(overallSummary);
+    } catch (err) {
+      console.error(pc.red(`  Error generating overall summary: ${(err as Error).message}`));
+    }
+
+    console.log(pc.bold(pc.cyan('\n✓ Done.\n')));
+  } finally {
+    await cleanup();
   }
-
-  console.log(pc.bold(pc.cyan('\n✓ Done.\n')));
 }
 
-main().catch((err) => {
-  console.error(pc.red(`Fatal: ${err.message}`));
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error(pc.red(`Fatal: ${err.message}`));
+    process.exit(1);
+  });
+}
