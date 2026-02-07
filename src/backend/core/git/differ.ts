@@ -1,6 +1,4 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
-import type { Logger } from '../../contracts/logger';
-import type { createRunner } from '../runner';
 import pc from 'picocolors';
 import { getChangedFiles, getFileDiff, getFullDiff, packChangedFiles, summariseFileDiff } from '../../../llm/diff-summary';
 import { generateText } from 'ai';
