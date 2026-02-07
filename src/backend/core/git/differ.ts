@@ -5,9 +5,12 @@ import { generateText } from 'ai';
 
 type Deps = {
     repoDir: string;
+    file?: string;
+    commit1: string;
+    commit2: string;
 };
-export const createDiffer = ({ repoDir }: Deps) => {
-    const summarize = async (commit1: string, commit2: string, file?: string) => {
+export const createDiffer = ({ repoDir, file, commit1, commit2 }: Deps) => {
+    const summarize = async () => {
         const apiKey = process.env.ANTHROPIC_API_KEY
         const model = 'claude-opus-4-6'
 
@@ -85,5 +88,5 @@ export const createDiffer = ({ repoDir }: Deps) => {
         }
     }
 
-    return summarize;
+    return summarize();
 };
