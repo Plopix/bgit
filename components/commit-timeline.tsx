@@ -139,7 +139,15 @@ interface CommitTimelineProps {
     selectionAction?: React.ReactNode;
 }
 
-export function CommitTimeline({ commits, onClear, onRefresh, actionLabel, selectedHashes, onSelectCommit, selectionAction }: CommitTimelineProps) {
+export function CommitTimeline({
+    commits,
+    onClear,
+    onRefresh,
+    actionLabel,
+    selectedHashes,
+    onSelectCommit,
+    selectionAction,
+}: CommitTimelineProps) {
     const ordered = orderCommitsAsTree(commits);
 
     return (
@@ -151,13 +159,13 @@ export function CommitTimeline({ commits, onClear, onRefresh, actionLabel, selec
                 <div className="flex items-center gap-3">
                     {selectionAction}
                     {(onRefresh || onClear) && (
-                    <button
-                        type="button"
-                        onClick={onRefresh ?? onClear}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                        {actionLabel ?? (onRefresh ? 'Refresh' : 'Clear & paste new')}
-                    </button>
+                        <button
+                            type="button"
+                            onClick={onRefresh ?? onClear}
+                            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            {actionLabel ?? (onRefresh ? 'Refresh' : 'Clear & paste new')}
+                        </button>
                     )}
                 </div>
             </div>
@@ -170,79 +178,84 @@ export function CommitTimeline({ commits, onClear, onRefresh, actionLabel, selec
                     {ordered.map((commit, index) => {
                         const isSelected = selectedHashes?.has(commit.hash);
                         return (
-                        <li key={commit.hash} className="relative flex gap-4 group">
-                            {/* Timeline dot */}
-                            <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-zinc-800 transition-colors group-hover:border-primary group-hover:bg-primary/10">
-                                <GitCommit className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                            </div>
-
-                            {/* Content card - clickable when selection is enabled */}
-                            <div
-                                role={onSelectCommit ? 'button' : undefined}
-                                tabIndex={onSelectCommit ? 0 : undefined}
-                                onClick={onSelectCommit ? () => onSelectCommit(commit.hash) : undefined}
-                                onKeyDown={onSelectCommit ? (e) => e.key === 'Enter' && onSelectCommit(commit.hash) : undefined}
-                                className={`flex-1 rounded-lg border p-4 transition-colors ${
-                                    commit.depth === 0
-                                        ? 'border-border/80 bg-zinc-800/90 group-hover:border-primary/30'
-                                        : 'border-border/60 bg-zinc-800/70 group-hover:border-primary/20'
-                                } ${onSelectCommit ? 'cursor-pointer select-none' : ''} ${
-                                    isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
-                                } ${index < ordered.length - 1 ? 'mb-4' : ''}`}
-                                style={{ marginLeft: commit.depth * INDENT_PER_LEVEL }}
-                            >
-                                {/* Commit message */}
-                                <p className="text-sm font-medium text-foreground leading-relaxed">
-                                    {commit.message}
-                                    {commit.parentHashes.length > 1 && (
-                                        <span className="ml-2 rounded bg-primary/20 px-1.5 py-0.5 text-xs text-primary">
-                                            merge
-                                        </span>
-                                    )}
-                                </p>
-
-                                {/* Metadata row */}
-                                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                                    {/* Hash */}
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <GitCommit className="h-3.5 w-3.5" />
-                                        <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs text-secondary-foreground">
-                                            {commit.hash.slice(0, 7)}
-                                        </code>
-                                        <CopyHash hash={commit.hash} />
-                                    </span>
-
-                                    {/* Parents (tree structure) */}
-                                    {commit.parentHashes.length > 0 && (
-                                        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                                            ←{' '}
-                                            {commit.parentHashes.map((pH, i) => (
-                                                <code
-                                                    key={pH}
-                                                    className="rounded bg-secondary/80 px-1 py-0.5 font-mono text-xs"
-                                                    title={pH}
-                                                >
-                                                    {pH.slice(0, 7)}
-                                                </code>
-                                            ))}
-                                        </span>
-                                    )}
-
-                                    {/* Author */}
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <User className="h-3.5 w-3.5" />
-                                        {commit.author}
-                                    </span>
-
-                                    {/* Date */}
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <Clock className="h-3.5 w-3.5" />
-                                        <time dateTime={commit.date}>{formatDate(commit.date)}</time>
-                                    </span>
+                            <li key={commit.hash} className="relative flex gap-4 group">
+                                {/* Timeline dot */}
+                                <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-zinc-800 transition-colors group-hover:border-primary group-hover:bg-primary/10">
+                                    <GitCommit className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                 </div>
-                            </div>
-                        </li>
-                    );})}
+
+                                {/* Content card - clickable when selection is enabled */}
+                                <div
+                                    role={onSelectCommit ? 'button' : undefined}
+                                    tabIndex={onSelectCommit ? 0 : undefined}
+                                    onClick={onSelectCommit ? () => onSelectCommit(commit.hash) : undefined}
+                                    onKeyDown={
+                                        onSelectCommit
+                                            ? (e) => e.key === 'Enter' && onSelectCommit(commit.hash)
+                                            : undefined
+                                    }
+                                    className={`flex-1 rounded-lg border p-4 transition-colors ${
+                                        commit.depth === 0
+                                            ? 'border-border/80 bg-zinc-800/90 group-hover:border-primary/30'
+                                            : 'border-border/60 bg-zinc-800/70 group-hover:border-primary/20'
+                                    } ${onSelectCommit ? 'cursor-pointer select-none' : ''} ${
+                                        isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
+                                    } ${index < ordered.length - 1 ? 'mb-4' : ''}`}
+                                    style={{ marginLeft: commit.depth * INDENT_PER_LEVEL }}
+                                >
+                                    {/* Commit message */}
+                                    <p className="text-sm font-medium text-foreground leading-relaxed">
+                                        {commit.message}
+                                        {commit.parentHashes.length > 1 && (
+                                            <span className="ml-2 rounded bg-primary/20 px-1.5 py-0.5 text-xs text-primary">
+                                                merge
+                                            </span>
+                                        )}
+                                    </p>
+
+                                    {/* Metadata row */}
+                                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                                        {/* Hash */}
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <GitCommit className="h-3.5 w-3.5" />
+                                            <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs text-secondary-foreground">
+                                                {commit.hash.slice(0, 7)}
+                                            </code>
+                                            <CopyHash hash={commit.hash} />
+                                        </span>
+
+                                        {/* Parents (tree structure) */}
+                                        {commit.parentHashes.length > 0 && (
+                                            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                                                ←{' '}
+                                                {commit.parentHashes.map((pH, i) => (
+                                                    <code
+                                                        key={pH}
+                                                        className="rounded bg-secondary/80 px-1 py-0.5 font-mono text-xs"
+                                                        title={pH}
+                                                    >
+                                                        {pH.slice(0, 7)}
+                                                    </code>
+                                                ))}
+                                            </span>
+                                        )}
+
+                                        {/* Author */}
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <User className="h-3.5 w-3.5" />
+                                            {commit.author}
+                                        </span>
+
+                                        {/* Date */}
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <Clock className="h-3.5 w-3.5" />
+                                            <time dateTime={commit.date}>{formatDate(commit.date)}</time>
+                                        </span>
+                                    </div>
+                                </div>
+                            </li>
+                        );
+                    })}
                 </ul>
             </div>
         </div>

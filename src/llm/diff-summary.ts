@@ -302,10 +302,3 @@ async function main() {
         await cleanup();
     }
 }
-
-if (import.meta.main) {
-    main().catch((err) => {
-        console.error(pc.red(`Fatal: ${err.message}`));
-        process.exit(1);
-    });
-}

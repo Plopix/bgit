@@ -9,16 +9,15 @@ import { CommitTimeline } from '../../../../components/commit-timeline';
 function filterCommits(commits: CommitInput[], query: string): CommitInput[] {
     const q = query.trim().toLowerCase();
     if (!q) return commits;
-    return commits.filter(
-        (c) =>
-            c.message.toLowerCase().includes(q) ||
-            c.hash.toLowerCase().includes(q)
-    );
+    return commits.filter((c) => c.message.toLowerCase().includes(q) || c.hash.toLowerCase().includes(q));
 }
 
 function parseNdjson(text: string): CommitInput[] {
     const commits: CommitInput[] = [];
-    const lines = text.trim().split('\n').filter((line) => line.trim());
+    const lines = text
+        .trim()
+        .split('\n')
+        .filter((line) => line.trim());
     for (const line of lines) {
         const c = JSON.parse(line);
         if (!c.hash || !c.author || !c.date || !c.message) {
@@ -44,10 +43,7 @@ export default function Page() {
     const [analyzing, setAnalyzing] = useState(false);
     const [analyzerMessage, setAnalyzerMessage] = useState<string | null>(null);
 
-    const filteredCommits = useMemo(
-        () => (commits ? filterCommits(commits, search) : null),
-        [commits, search]
-    );
+    const filteredCommits = useMemo(() => (commits ? filterCommits(commits, search) : null), [commits, search]);
 
     async function fetchLog() {
         setLoading(true);
@@ -91,7 +87,8 @@ export default function Page() {
         const from = hashes[0];
         const to = hashes[1];
         if (!from || !to) return;
-        if (!confirm(`Send these 2 commits to the analyzer?\n\nFrom: ${from.slice(0, 7)}\nTo: ${to.slice(0, 7)}`)) return;
+        if (!confirm(`Send these 2 commits to the analyzer?\n\nFrom: ${from.slice(0, 7)}\nTo: ${to.slice(0, 7)}`))
+            return;
 
         setAnalyzing(true);
         setAnalyzerMessage(null);
@@ -126,9 +123,7 @@ export default function Page() {
                 {analyzing ? 'Sending…' : 'Send to analyzer'}
             </button>
         ) : selectedHashes.size > 0 ? (
-            <span className="text-sm text-muted-foreground">
-                Select 1 more commit to analyze
-            </span>
+            <span className="text-sm text-muted-foreground">Select 1 more commit to analyze</span>
         ) : null;
 
     return (
