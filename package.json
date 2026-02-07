@@ -40,9 +40,6 @@
         "hono": "^4.11.8",
         "lucide-react": "^0.563.0",
         "@ai-sdk/anthropic": "^3.0.38",
-        "ai": "^6.0.77",
-        "commander": "^14.0.3",
-        "hono": "^4.11.8",
         "picocolors": "^1.1.1",
         "react": "^19",
         "react-dom": "^19",
@@ -56,9 +53,8 @@
         "@types/react-dom": "^19",
         "bun-plugin-tailwind": "^0.1.2",
         "prettier": "^3.8.1",
-        "tailwindcss": "^4.1.18"
-        "@types/signale": "^1.4.7",
-        "@types/react-dom": "^19"
+        "tailwindcss": "^4.1.18",
+        "@types/signale": "^1.4.7"
     },
     "peerDependencies": {
         "typescript": "^5"
