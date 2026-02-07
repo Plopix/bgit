@@ -11,18 +11,25 @@ export const createTestCommand = ({ logger, storage }: Deps) => {
     const command = new Command('test');
     command.description('Test stuff');
     command.action(async () => {
-        await storage.set('1', 'test 1');
-        console.log('1', await storage.get('1'));
-        await storage.set('2', 'test 2');
-        console.log('2', await storage.get('2'));
+        const testStore = storage('test');
+        await testStore.set('1', 'test 1');
+        console.log('1', await testStore.get('1'));
+        await testStore.set('2', 'test 2');
+        console.log('2', await testStore.get('2'));
 
-        await storage.delete('1');
-        console.log('1', await storage.get('1'));
-        console.log('2', await storage.get('2'));
+        await testStore.delete('1');
+        console.log('1', await testStore.get('1'));
+        console.log('2', await testStore.get('2'));
 
-        await storage.clear();
-        console.log('1', await storage.get('1'));
-        console.log('2', await storage.get('2'));
+        await testStore.clear();
+        console.log('1', await testStore.get('1'));
+        console.log('2', await testStore.get('2'));
+
+        const otherStore = storage('other');
+        await otherStore.set('1', 'other 1');
+        console.log('1', await otherStore.get('1'));
+        await otherStore.set('2', 'other 2');
+        console.log('2', await otherStore.get('2'));
 
         logger.info('test');
     });
