@@ -21,7 +21,19 @@ case "$OS" in
   *) FILE="bun-${OS}-${ARCH}" ;;
 esac
 
-LATEST_RELEASE=$(curl -s "https://api.github.com/repos/plopix/bgit/releases/latest" | grep tag_name | cut -d'"' -f 4)
+API_URL="https://api.github.com/repos/plopix/bgit/releases/latest"
+RESPONSE=$(curl -s "$API_URL")
+
+LATEST_RELEASE=$(echo "$RESPONSE" | grep '"tag_name":' | cut -d'"' -f 4)
+
+if [ -z "$LATEST_RELEASE" ]; then
+  ERROR_MSG=$(echo "$RESPONSE" | grep '"message":' | cut -d'"' -f 4)
+  if [ -z "$ERROR_MSG" ]; then
+    ERROR_MSG="Unable to determine latest release. GitHub might be down or rate limited. Can you reach: $API_URL ?"
+  fi
+  echo "❌ Error fetching latest release: $ERROR_MSG"
+  exit 1
+fi
 URL="https://github.com/plopix/bgit/releases/download/${LATEST_RELEASE}/bgit-${FILE}"
 
 echo "🌍 Detected platform: ${OS}-${ARCH}"
