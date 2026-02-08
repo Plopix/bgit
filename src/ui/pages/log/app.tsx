@@ -192,10 +192,7 @@ export default function Page() {
                 ) : filteredCommits && filteredCommits.length > 0 ? (
                     <>
                         {analyzerMessage && (
-                            <div
-                                className="mb-4 overflow-hidden rounded-lg border border-border bg-card"
-                                role="status"
-                            >
+                            <div className="mb-4 overflow-hidden rounded-lg border border-border bg-card" role="status">
                                 <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-3">
                                     <h2 className="text-sm font-semibold text-foreground">Analyzer response</h2>
                                     <button
@@ -275,9 +272,7 @@ export default function Page() {
                                         {fromHash?.slice(0, 7)}
                                     </p>
                                     {fromCommit && (
-                                        <p className="truncate text-xs text-muted-foreground">
-                                            {fromCommit.message}
-                                        </p>
+                                        <p className="truncate text-xs text-muted-foreground">{fromCommit.message}</p>
                                     )}
                                 </div>
                                 <div>
@@ -286,9 +281,7 @@ export default function Page() {
                                         {toHash?.slice(0, 7)}
                                     </p>
                                     {toCommit && (
-                                        <p className="truncate text-xs text-muted-foreground">
-                                            {toCommit.message}
-                                        </p>
+                                        <p className="truncate text-xs text-muted-foreground">{toCommit.message}</p>
                                     )}
                                 </div>
                             </div>

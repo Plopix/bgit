@@ -13,10 +13,10 @@ interface Commit extends CommitInput {
 const GRAPH_WIDTH = 56;
 const LANE_WIDTH = 14;
 const LANE_COLORS = [
-    'rgb(59 130 246)',   // blue
-    'rgb(234 179 8)',    // yellow/amber
-    'rgb(249 115 22)',   // orange
-    'rgb(219 39 119)',   // pink/magenta
+    'rgb(59 130 246)', // blue
+    'rgb(234 179 8)', // yellow/amber
+    'rgb(249 115 22)', // orange
+    'rgb(219 39 119)', // pink/magenta
 ];
 
 /** Orders commits chronologically (newest first) and assigns depth from root for indentation. */
@@ -205,11 +205,7 @@ export function CommitTimeline({
 
             <div className="relative flex">
                 {/* Graph column - VS Code style lines */}
-                <div
-                    className="relative shrink-0 self-stretch"
-                    style={{ width: GRAPH_WIDTH }}
-                    aria-hidden="true"
-                >
+                <div className="relative shrink-0 self-stretch" style={{ width: GRAPH_WIDTH }} aria-hidden="true">
                     {LANE_COLORS.map((color, i) => (
                         <div
                             key={i}

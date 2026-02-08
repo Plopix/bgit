@@ -36,7 +36,7 @@ export const createLogApi = ({ logger, differ, storage }: Deps) => {
             });
         }
 
-        console.log('diff not found in store, generating summary');
+        logger.debug('diff not found in store, generating summary');
 
         const summary = await differ({
             commit1: hashes[0],
