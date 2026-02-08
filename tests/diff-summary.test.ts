@@ -3,7 +3,7 @@ import type { createAnthropic } from '@ai-sdk/anthropic';
 
 // ── Mock the `ai` module so no real LLM call is made ─────────────────────────
 
-const generateTextMock = mock(async () => ({ text: 'mocked summary' }));
+const generateTextMock = mock(async (_args: unknown) => ({ text: 'mocked summary' }));
 
 mock.module('ai', () => ({
     generateText: generateTextMock,
@@ -39,7 +39,7 @@ describe('summariseFileDiff', () => {
 
         expect(generateTextMock).toHaveBeenCalledTimes(1);
 
-        const call = generateTextMock.mock.calls[0]![0] as Record<string, unknown>;
+        const call = generateTextMock.mock.calls[0]![0] as unknown as Record<string, unknown>;
         // The model is constructed via `anthropic(model)` – our fake returns { modelId }
         expect(call.model).toEqual({ modelId: 'claude-opus-4-6' });
     });
@@ -47,7 +47,7 @@ describe('summariseFileDiff', () => {
     it('includes the file path in the user prompt', async () => {
         await summariseFileDiff(fakeAnthropic(), 'claude-opus-4-6', 'lib/utils/helpers.ts', '+ added line', '');
 
-        const call = generateTextMock.mock.calls[0]![0] as Record<string, unknown>;
+        const call = generateTextMock.mock.calls[0]![0] as unknown as Record<string, unknown>;
         const prompt = call.prompt as string;
 
         expect(prompt).toContain('## File: lib/utils/helpers.ts');
@@ -62,7 +62,7 @@ describe('summariseFileDiff', () => {
 
         await summariseFileDiff(fakeAnthropic(), 'claude-opus-4-6', 'file.ts', diff, '');
 
-        const call = generateTextMock.mock.calls[0]![0] as Record<string, unknown>;
+        const call = generateTextMock.mock.calls[0]![0] as unknown as Record<string, unknown>;
         const prompt = call.prompt as string;
 
         expect(prompt).toContain('```diff');
@@ -73,7 +73,7 @@ describe('summariseFileDiff', () => {
     it('includes a system prompt about code review', async () => {
         await summariseFileDiff(fakeAnthropic(), 'claude-opus-4-6', 'a.ts', '+ line', '');
 
-        const call = generateTextMock.mock.calls[0]![0] as Record<string, unknown>;
+        const call = generateTextMock.mock.calls[0]![0] as unknown as Record<string, unknown>;
         const system = call.system as string;
 
         expect(system).toContain('senior software engineer');
@@ -85,7 +85,7 @@ describe('summariseFileDiff', () => {
 
         await summariseFileDiff(fakeAnthropic(), 'claude-opus-4-6', 'a.ts', '+ line', longContext);
 
-        const call = generateTextMock.mock.calls[0]![0] as Record<string, unknown>;
+        const call = generateTextMock.mock.calls[0]![0] as unknown as Record<string, unknown>;
         const prompt = call.prompt as string;
 
         expect(prompt).toContain('Repository context');
@@ -97,7 +97,7 @@ describe('summariseFileDiff', () => {
     it('omits the repo context section when repoContext is empty', async () => {
         await summariseFileDiff(fakeAnthropic(), 'claude-opus-4-6', 'a.ts', '+ line', '');
 
-        const call = generateTextMock.mock.calls[0]![0] as Record<string, unknown>;
+        const call = generateTextMock.mock.calls[0]![0] as unknown as Record<string, unknown>;
         const prompt = call.prompt as string;
 
         expect(prompt).not.toContain('Repository context');
@@ -114,7 +114,7 @@ describe('summariseFileDiff', () => {
     it('works with a different model name', async () => {
         await summariseFileDiff(fakeAnthropic(), 'claude-sonnet-4-20250514', 'b.ts', '+ y', '');
 
-        const call = generateTextMock.mock.calls[0]![0] as Record<string, unknown>;
+        const call = generateTextMock.mock.calls[0]![0] as unknown as Record<string, unknown>;
         expect(call.model).toEqual({ modelId: 'claude-sonnet-4-20250514' });
     });
 });

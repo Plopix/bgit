@@ -30,7 +30,12 @@ function orderCommitsAsTree(commits: CommitInput[]): Commit[] {
             .split(/\s+/)
             .map((h) => h.trim())
             .filter(Boolean);
-        const commit: Commit = { ...c, parentHashes };
+        const commit: Commit = {
+            depth: 0,
+            lane: 0,
+            ...c,
+            parentHashes,
+        };
         byHash.set(c.hash, commit);
         return commit;
     });
@@ -187,7 +192,7 @@ export function CommitTimeline({
         <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between gap-4">
                 <h2 className="text-lg font-semibold text-foreground">
-                    {ordered.length} {ordered.length === 1 ? 'Commit' : 'Commits'}
+                    Last {ordered.length} {ordered.length === 1 ? 'Commit' : 'Commits'}
                 </h2>
                 <div className="flex items-center gap-3">
                     {selectionAction}

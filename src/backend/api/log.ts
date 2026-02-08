@@ -13,11 +13,19 @@ export const createLogApi = ({ logger, differ, storage }: Deps) => {
     const commitDiffStore = storage('commit-diffs');
 
     app.get('/api/log', async (c) => {
-        // we may want to extract that into a service.
-        const output =
-            await Bun.$`git log --all --pretty=format:'{"hash":"%H","parents":"%P","author":"%an","date":"%ad","message":"%s"}'`.quiet();
+        // Use a hidden character as a separator to avoid issues with JSON parsing of the message
+        const output = await Bun.$`git log -n 1000 --pretty=format:'%H%x1f%P%x1f%an%x1f%ad%x1f%s'`.quiet();
+
+        const text = output.text();
+        const lines = text.split('\n').filter((line) => line.trim());
+
+        const jsonLines = lines.map((line) => {
+            const [hash, parents, author, date, message] = line.split('\x1f');
+            return JSON.stringify({ hash, parents, author, date, message });
+        });
+
         // provide correct header as JSON ND
-        return c.text(output.text());
+        return c.text(jsonLines.join('\n'));
     });
 
     app.post('/api/summary-diff', async (c) => {
