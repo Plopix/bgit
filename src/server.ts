@@ -13,7 +13,7 @@ const logLevels = (`${Bun.env.LOG_LEVELS}` === 'no-output' ? [] : ['info', ...`$
 )[];
 
 const services = buildServices({ logLevels });
-const { logger, runner } = services;
+const { logger, runner, storage } = services;
 
 const program = new Command();
 program.allowExcessArguments(true);
@@ -33,6 +33,17 @@ const helpStyling = {
 export const logo: string = `BGIT ${pc.italic(pc.yellow(packageJson.version))}`;
 console.log(pc.cyanBright(logo));
 program.description('todo');
+
+const anthropicKey = await storage('settings').get('anthropic-key');
+if (!anthropicKey) {
+    logger.info('No anthropic key set. To use full functionality, please supply a key.');
+    const key = prompt(pc.yellow('Enter your Anthropic API key: '));
+    if (key) {
+        await storage('settings').set('anthropic-key', key.trim());
+        logger.info('Anthropic key saved.');
+    }
+}
+
 
 const genericCommandOption = (command: Command) => {
     command.configureHelp(helpStyling);
@@ -56,6 +67,7 @@ commands.forEach((command) => {
 
 // Default action: forward all args to git when no bgit subcommand matches
 program.action(async () => {
+
     const args = process.argv.slice(2);
     const exitCode = await runner(
         ['git', ...args],

@@ -9,6 +9,7 @@ import {
 } from '../../../llm/diff-summary';
 import { generateText } from 'ai';
 import type { Logger } from '../../contracts/logger';
+import { buildServices } from '../../services';
 
 type Deps = {
     logger: Logger;
@@ -23,7 +24,9 @@ export const createDiffer = ({ logger }: Deps) => {
         commit2: string;
     };
     const summarize = async ({ file, commit1, commit2 }: Args) => {
-        const apiKey = process.env.ANTHROPIC_API_KEY;
+        const services = buildServices({ logLevels: ['info'] });
+        const { storage } = services;
+        const apiKey = await storage('settings').get('anthropic-key') as string || process.env.ANTHROPIC_API_KEY as string;
         const model = 'claude-opus-4-6';
 
         try {
