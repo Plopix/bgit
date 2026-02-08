@@ -5,12 +5,14 @@ import pc from 'picocolors';
 import log from '../../ui/pages/log/index.html';
 import type { Logger } from '../contracts/logger';
 import type { createDiffer } from '../core/git/differ';
+import type { createStorage } from '../core/storage';
 
 type Deps = {
     logger: Logger;
     differ: ReturnType<typeof createDiffer>;
+    storage: ReturnType<typeof createStorage>;
 };
-export const createLogCommand = ({ logger, differ }: Deps) => {
+export const createLogCommand = ({ logger, differ, storage }: Deps) => {
     const command = new Command('log');
     command.description('todo');
 
@@ -20,6 +22,7 @@ export const createLogCommand = ({ logger, differ }: Deps) => {
                 const app = createLogApi({
                     logger,
                     differ,
+                    storage,
                 });
                 const server = serve({
                     idleTimeout: 255,

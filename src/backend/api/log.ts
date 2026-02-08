@@ -1,13 +1,16 @@
 import { Hono } from 'hono';
 import { createDiffer } from '../core/git/differ';
 import type { Logger } from '../contracts/logger';
+import type { createStorage } from '../core/storage';
 
 type Deps = {
     logger: Logger;
     differ: ReturnType<typeof createDiffer>;
+    storage: ReturnType<typeof createStorage>;
 };
-export const createLogApi = ({ logger, differ }: Deps) => {
+export const createLogApi = ({ logger, differ, storage }: Deps) => {
     const app = new Hono();
+    const commitDiffStore = storage('commit-diffs');
 
     app.get('/api/log', async (c) => {
         // we may want to extract that into a service.
@@ -19,10 +22,29 @@ export const createLogApi = ({ logger, differ }: Deps) => {
 
     app.post('/api/summary-diff', async (c) => {
         const { from, to } = await c.req.json();
+
+        const hashes = [from, to].sort() as [string, string];
+
+        const key = hashes.join('|');
+        const commits = await commitDiffStore.get(key);
+
+        if (commits) {
+            console.log('diff found in store, returning cached summary');
+
+            return c.json({
+                summary: commits,
+            });
+        }
+
+        console.log('diff not found in store, generating summary');
+
         const summary = await differ({
-            commit1: from,
-            commit2: to,
+            commit1: hashes[0],
+            commit2: hashes[1],
         });
+
+        await commitDiffStore.set(key, summary);
+
         return c.json({
             summary,
         });
