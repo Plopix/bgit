@@ -2,9 +2,20 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { GitBranch, Search } from 'lucide-react';
+import { GitBranch, Loader2, Search, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import type { CommitInput } from '../../../../components/git-log-input';
 import { CommitTimeline } from '../../../../components/commit-timeline';
+import { cn } from '../../../../lib/utils';
+import { Button } from '../../../../components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '../../../../components/ui/dialog';
 
 function filterCommits(commits: CommitInput[], query: string): CommitInput[] {
     const q = query.trim().toLowerCase();
@@ -42,6 +53,7 @@ export default function Page() {
     const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
     const [analyzing, setAnalyzing] = useState(false);
     const [analyzerMessage, setAnalyzerMessage] = useState<string | null>(null);
+    const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
     const filteredCommits = useMemo(() => (commits ? filterCommits(commits, search) : null), [commits, search]);
 
@@ -82,13 +94,16 @@ export default function Page() {
         });
     }
 
+    function openConfirmModal() {
+        if (selectedHashes.size !== 2) return;
+        setConfirmModalOpen(true);
+    }
+
     async function sendToAnalyzer() {
         const hashes = [...selectedHashes];
         const from = hashes[0];
         const to = hashes[1];
         if (!from || !to) return;
-        if (!confirm(`Send these 2 commits to the analyzer?\n\nFrom: ${from.slice(0, 7)}\nTo: ${to.slice(0, 7)}`))
-            return;
 
         setAnalyzing(true);
         setAnalyzerMessage(null);
@@ -105,22 +120,30 @@ export default function Page() {
             const data = await res.json();
             setAnalyzerMessage(data.summary ?? 'Analysis complete.');
             setSelectedHashes(new Set());
+            setConfirmModalOpen(false);
         } catch (e) {
             setAnalyzerMessage(e instanceof Error ? e.message : 'Analyzer request failed.');
+            setConfirmModalOpen(false);
         } finally {
             setAnalyzing(false);
         }
     }
 
+    const hashes = [...selectedHashes];
+    const fromHash = hashes[0];
+    const toHash = hashes[1];
+    const fromCommit = filteredCommits?.find((c) => c.hash === fromHash);
+    const toCommit = filteredCommits?.find((c) => c.hash === toHash);
+
     const selectionAction =
         selectedHashes.size === 2 ? (
             <button
                 type="button"
-                onClick={sendToAnalyzer}
+                onClick={openConfirmModal}
                 disabled={analyzing}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-                {analyzing ? 'Sending…' : 'Send to analyzer'}
+                {analyzing ? 'Analyzing…' : 'Send to analyzer'}
             </button>
         ) : selectedHashes.size > 0 ? (
             <span className="text-sm text-muted-foreground">Select 1 more commit to analyze</span>
@@ -169,9 +192,25 @@ export default function Page() {
                 ) : filteredCommits && filteredCommits.length > 0 ? (
                     <>
                         {analyzerMessage && (
-                            <p className="mb-4 text-sm text-muted-foreground" role="status">
-                                {analyzerMessage}
-                            </p>
+                            <div
+                                className="mb-4 overflow-hidden rounded-lg border border-border bg-card"
+                                role="status"
+                            >
+                                <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-3">
+                                    <h2 className="text-sm font-semibold text-foreground">Analyzer response</h2>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAnalyzerMessage(null)}
+                                        aria-label="Close analyzer response"
+                                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#ff5f57] text-black/60 transition-colors hover:bg-[#ff6b63] hover:text-black/80 focus:outline-none focus:ring-2 focus:ring-[#ff5f57]/50"
+                                    >
+                                        <X className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+                                    </button>
+                                </div>
+                                <div className="px-4 py-3 text-sm text-muted-foreground [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-medium [&_p]:mb-2 [&_p]:leading-relaxed [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-0.5 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs [&_pre]:mb-2 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-4 [&_pre]:text-xs [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2">
+                                    <ReactMarkdown>{analyzerMessage}</ReactMarkdown>
+                                </div>
+                            </div>
                         )}
                         <CommitTimeline
                             commits={filteredCommits}
@@ -188,6 +227,87 @@ export default function Page() {
                     <p className="text-muted-foreground">No commits found.</p>
                 )}
             </div>
+
+            {/* Confirm & progress modal */}
+            <Dialog
+                open={confirmModalOpen}
+                onOpenChange={(open) => {
+                    if (!open && analyzing) return;
+                    setConfirmModalOpen(open);
+                }}
+            >
+                <DialogContent
+                    className={cn('sm:max-w-md', analyzing && '[&>button]:invisible')}
+                    onPointerDownOutside={(e) => analyzing && e.preventDefault()}
+                    onEscapeKeyDown={(e) => analyzing && e.preventDefault()}
+                >
+                    {analyzing ? (
+                        <div className="flex flex-col items-center gap-6 py-6">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                                <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden />
+                            </div>
+                            <div className="space-y-1 text-center">
+                                <h3 className="text-lg font-semibold text-foreground">Analyzing diff</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Comparing commits and generating summary…
+                                </p>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                    className="h-full w-1/3 bg-primary/60"
+                                    style={{ animation: 'loading-bar 1.5s ease-in-out infinite' }}
+                                    aria-hidden
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>Send to analyzer</DialogTitle>
+                                <DialogDescription>
+                                    Compare these two commits and generate a diff summary?
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+                                <div>
+                                    <span className="text-xs font-medium text-muted-foreground">From</span>
+                                    <p className="mt-0.5 truncate font-mono text-sm text-foreground">
+                                        {fromHash?.slice(0, 7)}
+                                    </p>
+                                    {fromCommit && (
+                                        <p className="truncate text-xs text-muted-foreground">
+                                            {fromCommit.message}
+                                        </p>
+                                    )}
+                                </div>
+                                <div>
+                                    <span className="text-xs font-medium text-muted-foreground">To</span>
+                                    <p className="mt-0.5 truncate font-mono text-sm text-foreground">
+                                        {toHash?.slice(0, 7)}
+                                    </p>
+                                    {toCommit && (
+                                        <p className="truncate text-xs text-muted-foreground">
+                                            {toCommit.message}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setConfirmModalOpen(false)}
+                                    disabled={analyzing}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button onClick={sendToAnalyzer} disabled={analyzing}>
+                                    Send to analyzer
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </main>
     );
 }
