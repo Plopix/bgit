@@ -7,9 +7,17 @@ import type { CommitInput } from './git-log-input';
 interface Commit extends CommitInput {
     parentHashes: string[];
     depth: number;
+    lane: number;
 }
 
-const INDENT_PER_LEVEL = 24; // px per tree level
+const GRAPH_WIDTH = 56;
+const LANE_WIDTH = 14;
+const LANE_COLORS = [
+    'rgb(59 130 246)',   // blue
+    'rgb(234 179 8)',    // yellow/amber
+    'rgb(249 115 22)',   // orange
+    'rgb(219 39 119)',   // pink/magenta
+];
 
 /** Orders commits chronologically (newest first) and assigns depth from root for indentation. */
 function orderCommitsAsTree(commits: CommitInput[]): Commit[] {
@@ -37,7 +45,7 @@ function orderCommitsAsTree(commits: CommitInput[]): Commit[] {
     const heads = enriched.filter((c) => !parentOf.has(c.hash));
     if (heads.length === 0) {
         return enriched
-            .map((c) => ({ ...c, depth: 0 }))
+            .map((c) => ({ ...c, depth: 0, lane: 0 }))
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 
@@ -75,9 +83,34 @@ function orderCommitsAsTree(commits: CommitInput[]): Commit[] {
         }
     }
 
-    // Assign depth to all commits; roots not yet visited get 0
+    // Lane assignment: use "depth from heads" (newest commits) so the main line stays in lane 0.
+    // Heads = tips of branches. BFS from heads toward parents - newer commits get lower depth.
+    const depthFromHead = new Map<string, number>();
+    const headQueue = [...heads.map((h) => h.hash)];
+    for (const h of heads) {
+        depthFromHead.set(h.hash, 0);
+    }
+    while (headQueue.length > 0) {
+        const hash = headQueue.shift()!;
+        const d = depthFromHead.get(hash)!;
+        const commit = byHash.get(hash);
+        if (!commit) continue;
+        for (const pHash of commit.parentHashes) {
+            if (!byHash.has(pHash)) continue;
+            const existing = depthFromHead.get(pHash);
+            if (existing === undefined || d + 1 < existing) {
+                depthFromHead.set(pHash, d + 1);
+                headQueue.push(pHash);
+            }
+        }
+    }
+
+    // Assign depth (from root) and lane (from head, modulo for cycling)
     for (const c of enriched) {
-        (c as Commit).depth = depthByHash.get(c.hash) ?? 0;
+        const depth = depthByHash.get(c.hash) ?? 0;
+        const dFromHead = depthFromHead.get(c.hash) ?? 0;
+        (c as Commit).depth = depth;
+        (c as Commit).lane = dFromHead % LANE_COLORS.length;
     }
 
     // Order chronologically: newest first (most recent at top)
@@ -170,21 +203,61 @@ export function CommitTimeline({
                 </div>
             </div>
 
-            <div className="relative">
-                {/* Vertical timeline line */}
-                <div className="absolute left-[19px] top-3 bottom-3 w-px bg-border" aria-hidden="true" />
+            <div className="relative flex">
+                {/* Graph column - VS Code style lines */}
+                <div
+                    className="relative shrink-0 self-stretch"
+                    style={{ width: GRAPH_WIDTH }}
+                    aria-hidden="true"
+                >
+                    {LANE_COLORS.map((color, i) => (
+                        <div
+                            key={i}
+                            className="absolute top-5 bottom-5 w-px opacity-40"
+                            style={{
+                                left: i * LANE_WIDTH + LANE_WIDTH / 2 - 1,
+                                backgroundColor: color,
+                            }}
+                        />
+                    ))}
+                </div>
 
-                <ul className="flex flex-col gap-0" role="list">
+                <ul className="flex flex-1 flex-col gap-0" role="list">
                     {ordered.map((commit, index) => {
                         const isSelected = selectedHashes?.has(commit.hash);
+                        const laneColor = LANE_COLORS[commit.lane];
+                        const dotLeft = commit.lane * LANE_WIDTH + LANE_WIDTH / 2 - 8;
                         return (
-                            <li key={commit.hash} className="relative flex gap-4 group">
-                                {/* Timeline dot */}
-                                <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-zinc-800 transition-colors group-hover:border-primary group-hover:bg-primary/10">
-                                    <GitCommit className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                            <li key={commit.hash} className="relative flex items-stretch gap-4 group">
+                                {/* Graph node (dot) - positioned in left column */}
+                                <div
+                                    className="relative z-10 flex shrink-0 items-center"
+                                    style={{ width: GRAPH_WIDTH, marginLeft: -GRAPH_WIDTH }}
+                                    aria-hidden
+                                >
+                                    <div
+                                        className="absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 transition-all group-hover:scale-110"
+                                        style={{
+                                            left: dotLeft,
+                                            backgroundColor: laneColor,
+                                            borderColor: 'hsl(var(--background))',
+                                            opacity: 0.95,
+                                        }}
+                                    />
+                                    {commit.parentHashes.length > 1 && (
+                                        <div
+                                            className="absolute top-1/2 z-5 h-1 -translate-y-1/2 rounded-full"
+                                            style={{
+                                                left: 0,
+                                                width: dotLeft + 10,
+                                                backgroundColor: laneColor,
+                                                opacity: 0.85,
+                                            }}
+                                        />
+                                    )}
                                 </div>
 
-                                {/* Content card - clickable when selection is enabled */}
+                                {/* Content card */}
                                 <div
                                     role={onSelectCommit ? 'button' : undefined}
                                     tabIndex={onSelectCommit ? 0 : undefined}
@@ -201,7 +274,6 @@ export function CommitTimeline({
                                     } ${onSelectCommit ? 'cursor-pointer select-none' : ''} ${
                                         isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
                                     } ${index < ordered.length - 1 ? 'mb-4' : ''}`}
-                                    style={{ marginLeft: commit.depth * INDENT_PER_LEVEL }}
                                 >
                                     {/* Commit message */}
                                     <p className="text-sm font-medium text-foreground leading-relaxed">
