@@ -1,5 +1,6 @@
 #!/usr/bin/env bun --hot
 
+import './shims/tiktoken';
 import packageJson from '../package.json';
 import { Command } from 'commander';
 import pc from 'picocolors';
@@ -44,7 +45,6 @@ if (!anthropicKey) {
     }
 }
 
-
 const genericCommandOption = (command: Command) => {
     command.configureHelp(helpStyling);
     command.allowExcessArguments(false);
@@ -67,7 +67,6 @@ commands.forEach((command) => {
 
 // Default action: forward all args to git when no bgit subcommand matches
 program.action(async () => {
-
     const args = process.argv.slice(2);
     const exitCode = await runner(
         ['git', ...args],

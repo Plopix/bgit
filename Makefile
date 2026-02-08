@@ -55,11 +55,6 @@ build-all: ## Build All the CLIs
 	@rm -f .*.bun-build
 	@mv ./src/ui/styles.tcss ./src/ui/styles.css
 
-
-.PHONY: serve
-serve: ## Serve the application
-	@LOG_LEVELS=debug,info ./src/server.ts serve
-
 .PHONY: clean
 clean: ## Clean
 	@rm -f bgit

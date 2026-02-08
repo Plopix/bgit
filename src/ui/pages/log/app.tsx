@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { GitBranch, Loader2, Search, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import type { CommitInput } from '../../../../components/git-log-input';
-import { CommitTimeline } from '../../../../components/commit-timeline';
-import { cn } from '../../../../lib/utils';
-import { Button } from '../../../../components/ui/button';
+import type { CommitInput } from '../../components/git-log-input';
+import { CommitTimeline } from '../../components/commit-timeline';
+import { cn } from '../../lib/utils';
+import { Button } from '../../components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -15,7 +15,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from '../../../../components/ui/dialog';
+} from '../../components/ui/dialog';
 
 function filterCommits(commits: CommitInput[], query: string): CommitInput[] {
     const q = query.trim().toLowerCase();

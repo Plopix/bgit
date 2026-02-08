@@ -10,7 +10,7 @@ mock.module('ai', () => ({
 }));
 
 // Import *after* the mock is registered so the module picks up our stub.
-const { summariseFileDiff } = await import('./diff-summary.ts');
+const { summariseFileDiff } = await import('../src/backend/core/llm/diff-summary.ts');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
